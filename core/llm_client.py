@@ -1,7 +1,7 @@
 """
 llm_client.py
 -------------
-Thin, reusable wrapper around the OpenAI chat completions API.
+Thin, reusable wrapper around the Groq API (OpenAI-compatible).
 Implements retry logic, timeout handling, and cost-aware token logging.
 """
 
@@ -18,7 +18,7 @@ logger = logging.getLogger("AI-SecureScan.LLMClient")
 
 class LLMClient:
     """
-    Centralized OpenAI API client for all agents.
+    Centralized Groq API client for all agents.
 
     Design decisions:
     - Single client instance shared across all agents (passed via DI)
@@ -32,7 +32,7 @@ class LLMClient:
 
     def __init__(self) -> None:
         self._client = OpenAI(
-            api_key=settings.openai_api_key,
+            api_key=settings.groq_api_key,
             base_url="https://api.groq.com/openai/v1",
             timeout=settings.request_timeout,
         )
@@ -96,12 +96,14 @@ class LLMClient:
                 last_error = e
 
             except APIStatusError as e:
-                # Non-retryable (e.g., 400 bad request, 401 auth error)
-                logger.error(f"API status error {e.status_code}: {e.message}")
-                raise RuntimeError(f"OpenAI API error: {e.status_code} — {e.message}") from e
+                logger.error(f"Groq API status error {e.status_code}: {e.message}")
+                raise RuntimeError(
+                    f"Groq API error: {e.status_code} — {e.message}"
+                ) from e
 
         raise RuntimeError(
-            f"LLM request failed after {self.MAX_RETRIES} attempts. Last error: {last_error}"
+            f"LLM request failed after {self.MAX_RETRIES} attempts. "
+            f"Last error: {last_error}"
         )
 
     def _log_token_usage(self, response) -> None:
@@ -109,7 +111,7 @@ class LLMClient:
         Track cumulative token usage for cost monitoring.
 
         Args:
-            response: OpenAI ChatCompletion response object.
+            response: Groq ChatCompletion response object.
         """
         if response.usage:
             pt = response.usage.prompt_tokens
@@ -129,10 +131,10 @@ class LLMClient:
             "prompt_tokens": self._total_prompt_tokens,
             "completion_tokens": self._total_completion_tokens,
             "total_tokens": self._total_prompt_tokens + self._total_completion_tokens,
-            # Estimated cost for gpt-4o-mini (as of 2024 pricing)
+            # Groq free tier — extremely low cost
             "estimated_cost_usd": round(
-                (self._total_prompt_tokens * 0.15 / 1_000_000)
-                + (self._total_completion_tokens * 0.60 / 1_000_000),
+                (self._total_prompt_tokens * 0.05 / 1_000_000)
+                + (self._total_completion_tokens * 0.08 / 1_000_000),
                 6,
             ),
         }
