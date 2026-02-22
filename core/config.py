@@ -17,11 +17,11 @@ class Settings(BaseSettings):
     Application settings loaded from environment variables or .env file.
 
     Fields:
-        openai_api_key: Required OpenAI API key.
-        model: OpenAI model name to use (default: gpt-4o-mini).
+        groq_api_key: Required Groq API key.
+        model: Groq model name to use (default: llama-3.3-70b-versatile).
         safe_mode: If True, disables real command execution.
         log_level: Logging verbosity (DEBUG, INFO, WARNING, ERROR).
-        request_timeout: Max seconds for OpenAI API calls.
+        request_timeout: Max seconds for Groq API calls.
     """
 
     model_config = SettingsConfigDict(
@@ -31,11 +31,11 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
-    openai_api_key: str = Field(..., description="OpenAI API key — required")
-    model: str = Field(default="gpt-4o-mini", description="OpenAI model to use")
+    groq_api_key: str = Field(..., description="Groq API key — required")
+    model: str = Field(default="llama-3.3-70b-versatile", description="Groq model to use")
     safe_mode: bool = Field(default=True, description="Disable real command execution if True")
     log_level: str = Field(default="INFO", description="Logging level")
-    request_timeout: int = Field(default=60, description="OpenAI request timeout in seconds")
+    request_timeout: int = Field(default=60, description="Groq API request timeout in seconds")
 
     @field_validator("log_level")
     @classmethod
@@ -82,5 +82,5 @@ def configure_logging() -> None:
             logging.FileHandler("logs/ai_securescan.log", encoding="utf-8"),
         ],
     )
-    logging.getLogger("httpx").setLevel(logging.WARNING)  # Suppress noisy HTTP logs
-    logging.getLogger("openai").setLevel(logging.WARNING)
+    logging.getLogger("httpx").setLevel(logging.WARNING)
+    logging.getLogger("groq").setLevel(logging.WARNING)
