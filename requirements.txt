@@ -2,18 +2,18 @@
 # Compatible with Python 3.10+
 
 # ── Core AI / LLM ────────────────────────────────────────────────────────────
-openai>=1.30.0,<2.0.0                # OpenAI Python SDK v1.x
+openai>=1.30.0,<2.0.0               # OpenAI SDK (used for Groq compatibility)
 
 # ── Configuration / Environment ───────────────────────────────────────────────
-pydantic>=2.6.0,<3.0.0              # Data validation and settings models
-pydantic-settings>=2.2.0,<3.0.0    # .env file support for pydantic v2
-python-dotenv>=1.0.0,<2.0.0        # Load .env file into os.environ
+pydantic>=2.6.0,<3.0.0             # Data validation and settings models
+pydantic-settings>=2.2.0,<3.0.0   # .env file support for pydantic v2
+python-dotenv>=1.0.0,<2.0.0       # Load .env file into os.environ
 
 # ── Utilities ─────────────────────────────────────────────────────────────────
 # No additional runtime dependencies required.
 # All other imports (subprocess, re, logging, json, etc.) are Python stdlib.
 
-# ── Development / Testing (optional, comment out for production) ───────────────
+# ── Development / Testing (optional) ──────────────────────────────────────────
 # pytest>=8.0.0
 # pytest-cov>=5.0.0
 # black>=24.0.0
