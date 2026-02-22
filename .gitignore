@@ -1,0 +1,54 @@
+# ──────────────────────────────────────────────────────────────────────────────
+# AI-SecureScan — .gitignore
+# ──────────────────────────────────────────────────────────────────────────────
+
+# Environment & Secrets (NEVER commit these)
+.env
+*.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.pyd
+.Python
+build/
+dist/
+*.egg-info/
+.eggs/
+pip-wheel-metadata/
+
+# Virtual environments
+venv/
+env/
+.venv/
+.env/
+ENV/
+
+# Output directories (contain scan data — may be sensitive)
+reports/
+logs/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# Testing
+.pytest_cache/
+.coverage
+coverage.xml
+htmlcov/
+
+# Type checking
+.mypy_cache/
+.dmypy.json
+
+# Ruff / linting
+.ruff_cache/
