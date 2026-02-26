@@ -11,7 +11,7 @@
 
 ---
 
-## 🎯 Overview
+## Overview
 
 AI-SecureScan is a **production-quality, multi-agent AI system** that combines the power of Groq's ultra-fast LLM inference with deterministic security rules to deliver a comprehensive vulnerability scanning and risk remediation pipeline.
 
@@ -23,16 +23,16 @@ Built to showcase:
 
 ---
 
-## ⚡ Why Groq?
+## Why Groq?
 
-- 🚀 **10x faster** than OpenAI for LLM inference
-- 💰 **Free tier available** — get started at no cost
-- 🧠 **llama-3.3-70b-versatile** — powerful open-source model
-- 🔑 Get your free API key → [console.groq.com](https://console.groq.com)
+-  **10x faster** than OpenAI for LLM inference
+-  **Free tier available** — get started at no cost
+-  **llama-3.3-70b-versatile** — powerful open-source model
+-  Get your free API key → [console.groq.com](https://console.groq.com)
 
 ---
 
-## 🏗️ Architecture
+##  Architecture
 
 ```
 AI-SecureScan/
@@ -96,7 +96,7 @@ Target IP/Host
 
 ---
 
-## ⚡ Quick Start
+##  Quick Start
 
 ### Prerequisites
 
@@ -148,7 +148,7 @@ python main.py 192.168.1.1 --port 80
 
 ---
 
-## 🔐 Security Design
+## Security Design
 
 | Concern | Solution |
 |---------|----------|
@@ -162,7 +162,7 @@ python main.py 192.168.1.1 --port 80
 
 ---
 
-## 🧠 Agent Responsibilities
+## Agent Responsibilities
 
 ### [1] StrategyAgent
 - Uses Groq LLM to generate an optimized nmap command for the target
@@ -212,7 +212,7 @@ python main.py 192.168.1.1 --port 80
 
 ---
 
-## 📊 Scoring System
+## Scoring System
 
 The composite Secure Score combines two independent signals:
 
@@ -231,7 +231,7 @@ AI Secure Score (Groq LLM judgment)  +  Deterministic Score (rule engine)
 
 ---
 
-## ⚙️ Configuration
+##  Configuration
 
 | Variable | Default | Description |
 |----------|---------|-------------|
@@ -253,7 +253,7 @@ REQUEST_TIMEOUT=60
 
 ---
 
-## 💡 Cost Optimization
+## Cost Optimization
 
 - Uses `llama-3.3-70b-versatile` via Groq — **free tier available**
 - Scan output truncated to 4000–5000 chars before LLM submission
@@ -263,7 +263,7 @@ REQUEST_TIMEOUT=60
 
 ---
 
-## 🚀 Scaling to Enterprise
+##  Scaling to Enterprise
 
 | Area | Recommendation |
 |------|---------------|
@@ -292,6 +292,3 @@ The authors assume no liability for misuse.
 
 MIT License — see [LICENSE](LICENSE) for details.
 
----
-
-*Built with ❤️ using Python 3.10+ · Groq API · llama-3.3-70b-versatile · nmap · nikto · feroxbuster · enum4linux · Pydantic*
