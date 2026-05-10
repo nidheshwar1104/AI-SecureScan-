@@ -122,6 +122,40 @@ pip install -r requirements.txt
 cp .env.example .env
 # Edit .env and add your GROQ_API_KEY
 ```
+## 🌐 Web Dashboard (Flask UI)
+
+### Run the Web UI on Kali Linux
+
+#### Step 1 — Install Flask
+
+```bash
+pip install flask
+```
+
+#### Step 2 — Go to your project folder
+
+```bash
+cd /path/to/AI-SecureScan
+```
+
+#### Step 3 — Run the dashboard
+
+```bash
+python dashboard.py
+```
+
+#### Step 4 — Dashboard starts
+
+```text
+🛡 AI-SecureScan Web Dashboard
+Open: http://localhost:5000
+```
+
+#### Step 5 — Open in browser
+
+```text
+http://localhost:5000
+```
 
 ### Install Scanning Tools (Kali Linux)
 
