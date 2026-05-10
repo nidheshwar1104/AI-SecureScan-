@@ -8,7 +8,7 @@
 [![Agents](https://img.shields.io/badge/Agents-8-green)]()
 [![Tools](https://img.shields.io/badge/Tools-nmap%20%7C%20nikto%20%7C%20feroxbuster%20%7C%20enum4linux-red)]()
 [![Kali](https://img.shields.io/badge/Kali-Linux-purple)]()
-[![Dashboard](https://img.shields.io/badge/UI-Flask%20Dashboard-black)]()
+[![Dashboard](https://img.shields.io/badge/UI-Flask%20Dashboard-red)]()
 
 ---
 
