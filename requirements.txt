@@ -8,6 +8,8 @@ openai>=1.30.0,<2.0.0               # OpenAI SDK (used for Groq compatibility)
 pydantic>=2.6.0,<3.0.0             # Data validation and settings models
 pydantic-settings>=2.2.0,<3.0.0   # .env file support for pydantic v2
 python-dotenv>=1.0.0,<2.0.0       # Load .env file into os.environ
+# ── Web Dashboard ────────────────────────────────────────────────────────────
+flask>=3.0.0,<4.0.0               # Flask web dashboard UI
 
 # ── Utilities ─────────────────────────────────────────────────────────────────
 # No additional runtime dependencies required.
