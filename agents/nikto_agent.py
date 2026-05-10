@@ -1,17 +1,11 @@
 """
 nikto_agent.py
 --------------
-Web vulnerability scanning agent using Nikto.
-Identifies server misconfigurations, outdated software, dangerous files,
-default credentials, XSS vectors, and CVE-referenced vulnerabilities.
-
-Nikto is an open-source web server scanner.
-Install: sudo apt install nikto
+FIXED: Real subprocess execution, output capture, and parsing.
 """
 
 import re
 import logging
-import shlex
 import subprocess
 from dataclasses import dataclass, field
 
@@ -22,7 +16,6 @@ from core.config import settings
 
 logger = logging.getLogger("AI-SecureScan.NiktoAgent")
 
-# ── Realistic mock Nikto output ───────────────────────────────────────────────
 SAFE_MODE_MOCK_OUTPUT = """
 - Nikto v2.1.6
 ---------------------------------------------------------------------------
@@ -35,54 +28,44 @@ SAFE_MODE_MOCK_OUTPUT = """
 + The anti-clickjacking X-Frame-Options header is not present.
 + The X-XSS-Protection header is not defined.
 + The X-Content-Type-Options header is not set.
-+ No CGI Directories found
 + PHP/5.4.16 appears to be outdated (current is at least PHP 8.1.0)
 + Apache/2.4.6 appears to be outdated (current is at least Apache/2.4.54)
 + OSVDB-3268: /admin/: Directory indexing found.
 + OSVDB-3092: /admin/: This might be interesting...
 + OSVDB-3268: /backup/: Directory indexing found.
-+ OSVDB-3092: /backup/: This might be interesting...
 + OSVDB-3233: /phpinfo.php: PHP is installed, and a phpinfo() file was found.
 + OSVDB-3092: /phpmyadmin/: phpMyAdmin is the default file name.
-+ OSVDB-12184: /index.php?=PHPB8B5F2A0-3C92-11d3-A3A9-4C7B08C10000: PHP reveals potentially sensitive info via certain HTTP requests.
-+ OSVDB-3092: /.htaccess: .htaccess file was found, may contain interesting information.
-+ OSVDB-3233: /icons/README: Apache default file found.
-+ OSVDB-5292: /?_CONFIG[files][functions_page]=http://cirt.net/rfiinc.txt?: RFI from RSnake's list.
++ Cookie PHPSESSID created without the httponly flag.
++ Cookie session created without the secure flag.
 + /login.php: Admin login page found.
 + /wp-login.php: Wordpress login found.
 + /config.php: PHP config file was found.
-+ Cookie PHPSESSID created without the httponly flag.
-+ Cookie session created without the secure flag.
-+ /cgi-bin/test.cgi: CGI script found.
-+ OSVDB-27071: /phpmyadmin/calendarbase.php?goroot=http://cirt.net/rfiinc.txt?: phpMyAdmin is vulnerable to Remote File Inclusion (RFI).
-+ Server leaks inodes via ETags, header found with file /index.html, inode: 12345.
-+ OSVDB-3268: /js/: Directory indexing found.
++ OSVDB-27071: /phpmyadmin/calendarbase.php?goroot=http://cirt.net/rfiinc.txt?: RFI vulnerability.
 + 8345 requests: 0 error(s) and 26 item(s) reported on remote host
 + End Time: 2024-01-01 12:05:43 (GMT) (343 seconds)
 ---------------------------------------------------------------------------
 + 1 host(s) tested
 """.strip()
 
-# ── Deterministic severity rules ──────────────────────────────────────────────
 NIKTO_FLAGS = [
-    (r"PHP/[45]\.",                       "CRITICAL", "Critically outdated PHP version detected"),
-    (r"Apache/2\.[0-3]\.",                "HIGH",     "Outdated Apache version with known CVEs"),
+    (r"PHP/[45]\.",                        "CRITICAL", "Critically outdated PHP version detected"),
+    (r"Apache/2\.[0-3]\.",                 "HIGH",     "Outdated Apache version with known CVEs"),
     (r"phpMyAdmin",                        "HIGH",     "phpMyAdmin panel accessible"),
     (r"phpinfo\.php",                      "HIGH",     "phpinfo.php reveals server configuration"),
     (r"RFI|Remote File Inclus",            "CRITICAL", "Remote File Inclusion vulnerability detected"),
     (r"X-Frame-Options.*not present",      "MEDIUM",   "Clickjacking protection missing"),
     (r"X-XSS-Protection.*not defined",     "MEDIUM",   "XSS protection header missing"),
-    (r"httponly.*flag|HttpOnly",           "MEDIUM",   "Session cookie missing HttpOnly flag"),
+    (r"httponly.*flag|HttpOnly",            "MEDIUM",   "Session cookie missing HttpOnly flag"),
     (r"secure.*flag|without.*secure",      "HIGH",     "Session cookie missing Secure flag"),
-    (r"Directory indexing",                "MEDIUM",   "Directory listing enabled — exposes file structure"),
+    (r"Directory indexing",                "MEDIUM",   "Directory listing enabled"),
     (r"\.htaccess",                        "MEDIUM",   ".htaccess file accessible"),
     (r"wp-login\.php|wordpress",           "MEDIUM",   "WordPress installation detected"),
     (r"default.*file|README.*found",       "LOW",      "Default server files accessible"),
-    (r"inodes.*ETag|ETag.*inode",         "LOW",      "Server leaking inode information via ETags"),
+    (r"inodes.*ETag|ETag.*inode",          "LOW",      "Server leaking inode information via ETags"),
     (r"login\.php.*found|admin.*login",    "MEDIUM",   "Login page discovered"),
-    (r"CGI.*found|cgi-bin",               "MEDIUM",   "CGI scripts found — check for shellshock"),
+    (r"CGI.*found|cgi-bin",               "MEDIUM",   "CGI scripts found"),
     (r"config\.php",                       "HIGH",     "PHP config file accessible"),
-    (r"OSVDB-\d+",                         "INFO",     "OSVDB vulnerability reference found in results"),
+    (r"OSVDB-\d+",                         "INFO",     "OSVDB vulnerability reference found"),
 ]
 
 SYSTEM_PROMPT = """You are a web application penetration tester analyzing Nikto scan results.
@@ -118,47 +101,23 @@ FALLBACK = {
 
 @dataclass
 class NiktoResult:
-    """Structured result from a Nikto web vulnerability scan."""
     raw_output: str
     target_url: str
-    critical_flags: list[str] = field(default_factory=list)
-    osvdb_ids: list[str] = field(default_factory=list)
+    critical_flags: list = field(default_factory=list)
+    osvdb_ids: list = field(default_factory=list)
     ai_analysis: dict = field(default_factory=dict)
     total_findings: int = 0
     safe_mode: bool = True
 
 
 class NiktoAgent(BaseAgent):
-    """
-    Web vulnerability scanner using Nikto.
 
-    Detects:
-    - Outdated server software (Apache, PHP, nginx)
-    - Dangerous default files (.htaccess, phpinfo.php, README)
-    - Missing HTTP security headers (CSP, HSTS, X-Frame-Options)
-    - Cookie security issues (HttpOnly, Secure flags)
-    - Known CVEs and OSVDB references
-    - Directory listing, RFI, LFI indicators
-    - CMS installations (WordPress, phpMyAdmin)
-    - CGI script vulnerabilities
-    """
-
-    COMMAND_TIMEOUT = 360  # Nikto can be slow on thorough scans
+    COMMAND_TIMEOUT = 360
 
     def __init__(self, llm_client: LLMClient, memory: AgentMemory) -> None:
         super().__init__("NiktoAgent", llm_client, memory)
 
     def run(self, target: str, port: int = 80) -> NiktoResult:
-        """
-        Run Nikto web vulnerability scan against the target.
-
-        Args:
-            target: IP address or hostname.
-            port: Web server port (80 for HTTP, 443 for HTTPS).
-
-        Returns:
-            NiktoResult with findings and AI analysis.
-        """
         protocol = "https" if port == 443 else "http"
         url = f"{protocol}://{target}"
         self.logger.info(f"Starting Nikto scan against: {url}:{port}")
@@ -170,6 +129,10 @@ class NiktoAgent(BaseAgent):
         else:
             raw_output = self._run_nikto(target, port)
             safe_mode = False
+
+        # ── FIX: Log raw output for debugging ────────────────────────────────
+        self.logger.info(f"Nikto raw output length: {len(raw_output)} chars")
+        self.logger.debug(f"Nikto raw output preview:\n{raw_output[:500]}")
 
         flags = self._flag_findings(raw_output)
         osvdb_ids = self._extract_osvdb(raw_output)
@@ -186,6 +149,7 @@ class NiktoAgent(BaseAgent):
             safe_mode=safe_mode,
         )
 
+        # ── FIX: Store all real parsed data in memory ─────────────────────────
         self.memory.store("nikto_result", {
             "url": f"{url}:{port}",
             "total_findings": total,
@@ -203,14 +167,19 @@ class NiktoAgent(BaseAgent):
 
     def _run_nikto(self, target: str, port: int) -> str:
         """
-        Execute Nikto securely via subprocess.
-
-        Uses:
-        - -h (host), -p (port)
-        - -nointeractive (no prompts)
-        - -C all (scan all CGI dirs)
-        - Output format: plain text
+        FIX: Proper nikto execution with output file for reliable capture.
+        Key fixes:
+          - Use -output flag to write to file (most reliable)
+          - Use -Format txt for parseable output
+          - Capture both stdout and stderr
+          - Read output file after scan completes
         """
+        import tempfile, os
+
+        # ── Write to temp file for reliable output capture ────────────────────
+        with tempfile.NamedTemporaryFile(suffix=".txt", delete=False) as tmp:
+            tmp_path = tmp.name
+
         args = [
             "nikto",
             "-h", target,
@@ -218,23 +187,71 @@ class NiktoAgent(BaseAgent):
             "-nointeractive",
             "-C", "all",
             "-maxtime", "300s",
+            "-output", tmp_path,   # ── FIX: write output to file
+            "-Format", "txt",      # ── FIX: plain text format for easy parsing
         ]
+
+        self.logger.info(f"Running: {' '.join(args)}")
+
         try:
             proc = subprocess.run(
-                args, capture_output=True, text=True,
-                timeout=self.COMMAND_TIMEOUT, shell=False
+                args,
+                capture_output=True,
+                text=True,
+                timeout=self.COMMAND_TIMEOUT,
+                shell=False,
             )
-            return (proc.stdout + proc.stderr).strip() or "No output from Nikto."
+
+            # ── FIX: Combine stdout + file output ─────────────────────────────
+            stdout = proc.stdout or ""
+            stderr = proc.stderr or ""
+
+            file_output = ""
+            if os.path.exists(tmp_path):
+                try:
+                    with open(tmp_path, "r", encoding="utf-8", errors="ignore") as f:
+                        file_output = f.read()
+                    os.unlink(tmp_path)
+                except Exception as e:
+                    self.logger.warning(f"Could not read nikto output file: {e}")
+
+            # Prefer file output, fallback to stdout, then stderr
+            if file_output.strip():
+                combined = file_output
+                if stdout.strip():
+                    combined = stdout + "\n" + file_output
+            elif stdout.strip():
+                combined = stdout
+            else:
+                combined = stderr
+
+            if not combined.strip():
+                return "WARNING: Nikto produced no output. Target may be unreachable."
+
+            self.logger.info(f"Nikto output captured: {len(combined)} chars")
+            return combined.strip()
+
         except FileNotFoundError:
             return "ERROR: nikto not installed. Install: sudo apt install nikto"
         except subprocess.TimeoutExpired:
+            # ── FIX: Read partial output on timeout ───────────────────────────
+            partial = ""
+            if os.path.exists(tmp_path):
+                try:
+                    with open(tmp_path, "r", encoding="utf-8", errors="ignore") as f:
+                        partial = f.read()
+                    os.unlink(tmp_path)
+                except Exception:
+                    pass
+            if partial.strip():
+                self.logger.warning("Nikto timed out — returning partial output")
+                return f"[PARTIAL OUTPUT - TIMEOUT]\n{partial}"
             return f"ERROR: Nikto timed out after {self.COMMAND_TIMEOUT}s."
         except Exception as e:
             self.logger.exception(f"Nikto execution error: {e}")
             return f"ERROR: {e}"
 
-    def _flag_findings(self, output: str) -> list[str]:
-        """Deterministically flag critical findings from Nikto output."""
+    def _flag_findings(self, output: str) -> list:
         findings = []
         seen = set()
         for pattern, severity, description in NIKTO_FLAGS:
@@ -243,25 +260,31 @@ class NiktoAgent(BaseAgent):
                 seen.add(description)
         return findings
 
-    def _extract_osvdb(self, output: str) -> list[str]:
-        """Extract all OSVDB and CVE IDs referenced in the scan output."""
+    def _extract_osvdb(self, output: str) -> list:
         osvdb = re.findall(r"OSVDB-\d+", output)
         cves = re.findall(r"CVE-\d{4}-\d+", output)
         return list(set(osvdb + cves))
 
     def _count_findings(self, output: str) -> int:
-        """Count total reported items from Nikto output."""
+        """FIX: Multiple patterns to count findings reliably."""
+        # Pattern 1: "N item(s) reported"
         match = re.search(r"(\d+)\s+item\(s\)\s+reported", output)
         if match:
             return int(match.group(1))
-        # Fallback: count lines starting with '+'
-        return len([l for l in output.splitlines() if l.strip().startswith("+")])
+        # Pattern 2: count lines starting with '+'
+        plus_lines = [l for l in output.splitlines() if l.strip().startswith("+")]
+        if plus_lines:
+            return len(plus_lines)
+        # Pattern 3: count OSVDB references
+        osvdb_count = len(re.findall(r"OSVDB-\d+", output))
+        return osvdb_count
 
     def _ai_analyze(self, output: str, url: str) -> dict:
-        """Use LLM for deep qualitative analysis of Nikto findings."""
+        """Feed REAL output to AI."""
         user_prompt = (
             f"Target URL: {url}\n\n"
-            f"Nikto scan output:\n```\n{output[:5000]}\n```\n\n"
+            f"Nikto scan output ({len(output)} chars total, showing first 5000):\n"
+            f"```\n{output[:5000]}\n```\n\n"
             f"Provide the JSON security analysis."
         )
         raw = self._call_llm(SYSTEM_PROMPT, user_prompt, temperature=0.2)
